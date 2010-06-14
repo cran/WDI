@@ -1,7 +1,7 @@
 \name{WDIsearch}
 \alias{WDIsearch}
 \title{World Development Indicators Search}
-\description{Keyword search in the names of World Banks' World Development Indicators}
+\description{Keyword search in the names of World Bank's World Development Indicators}
 \usage{
 WDIsearch(keyword)
 }

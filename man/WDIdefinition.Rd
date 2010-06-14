@@ -1,7 +1,7 @@
 \name{WDIdefinition}
 \alias{WDIdefinition}
 \title{World Development Indicators Definition}
-\description{Definitions for World Banks' World Development Indicators}
+\description{Definitions for World Bank's World Development Indicators}
 \usage{
 WDIdefinition(indicator)
 }
