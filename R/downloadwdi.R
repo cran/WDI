@@ -13,7 +13,7 @@ downloadwdi <- function(country,indicator,start,end){
     ### Extract
     DF <- data.frame(xmlToDataFrame(doc)[,2:4],
                      unlist(lapply(getNodeSet(doc, "//wb:country"), xmlAttrs)))
-    names(DF) <- c("country", indicator, "year", "iso2c")
+    names(DF) <- c("country","year",indicator , "iso2c")
     
     ### Clean
     for (y in 1:ncol(DF)){DF[,y] <- as.character(DF[,y])}
