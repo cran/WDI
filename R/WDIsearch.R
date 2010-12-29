@@ -1,5 +1,5 @@
 WDIsearch <- function(keyword){
-  doc <- xmlTreeParse("http://open.worldbank.org/indicators?per_page=2500", useInternal=TRUE)
+  doc <- xmlTreeParse("http://open.worldbank.org/indicators?per_page=8000", useInternal=TRUE)
   DF <- xmlToDataFrame(doc)
   indicators <- unlist(lapply(getNodeSet(doc, "//wb:indicator"), xmlAttrs))
   DF <- data.frame(indicators, DF$name)[grep(keyword,DF$name, ignore.case=TRUE),]

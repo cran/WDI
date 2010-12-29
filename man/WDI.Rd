@@ -22,6 +22,8 @@ Downloads the requested data by using the World Bank's API, parses the resulting
 The function itself does not take a long time to execute, but the network connection may induce some delays.
 
 Occasionally, WDI will produce an error in "matrix(vals, length(nfields))". This error is produced by the XML package, and is relatively harmless. It indicates that R was unable to connect to the World Bank's API to retrieve a given indicator. A list of missing indicators is printed after each use of WDI. 
+
+Thanks to C and Adam Hyland for submitting code and bug reports.
 }
 \author{Vincent Arel-Bundock <varel@umich.edu>}
 \examples{

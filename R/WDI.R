@@ -2,6 +2,7 @@ WDI <- function(country="US", indicator="NY.GNS.ICTR.GN.ZS", start=2002, end=200
 INDICATORS <- list()
 missingind <- NULL
 missing <- 0
+indicator <- sub('^[ \t]+|[ \t]+$', '', indicator)
 for (z in 1:length(indicator)){
   COUNTRIES <- list()
   for (w in 1:length(country)){
