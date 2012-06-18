@@ -15,24 +15,34 @@
 #' WDI(country="all", indicator=c("AG.AGR.TRAC.NO","TM.TAX.TCOM.BC.ZS"), start=1990, end=2000)
 #' WDI(country=c("US","BR"), indicator="NY.GNS.ICTR.GN.ZS", start=1999, end=2000, extra=TRUE, cache=NULL)
 WDI <- function(country = "all", indicator = "NY.GNS.ICTR.GN.ZS", start = 2002, end = 2005, extra = FALSE, cache=NULL){
-    # Sanity
+    # Sanity checks
     indicator = gsub('[^a-zA-Z0-9\\.]', '', indicator)
-    country   = gsub('[^a-zA-Z]', '', country) # 
-    if(!(start < end)){
+    country   = gsub('[^a-zA-Z]', '', country)
+    if(!('all' %in% country)){
+        country_bad = country[!(country %in% WDI_data$country[,'iso2c'])]
+        country = country[!(country %in% country_bad)]
+        if(length(country_bad) > 0){
+            warning(paste('Unable to download data on countries: ', paste(country_bad, collapse=', ')))
+        }
+        if(length(country) > 0){
+            country = paste(country, collapse=';')
+        }else{
+            stop('No valid country was requested')
+        }
+    }else{
+        country = 'all'
+    }
+    if(!(start <= end)){
         stop('start/end must be integers with start <= end')
     }
-    # Indicator-Country combinations
-    a = expand.grid('indicator'=indicator, 'country'=country)
     # Download
-    dat = lapply(1:nrow(a), function(j) try(wdi.dl(a$indicator[j], a$country[j], start, end), silent=TRUE))
+    dat = lapply(indicator, function(j) try(wdi.dl(j, country, start, end), silent=TRUE))
     # Raise warning if download fails 
     good = unlist(lapply(dat, function(i) class(i)) == 'data.frame')
     if(any(!good)){
-        a = paste(paste('(', a[,1], '-', a[,2], ')')[!good], collapse=' ; ')
-        warning(paste('Unable to download the following: ', a))
-        dat = dat[good] 
+        warning(paste('Unable to download indicators ', paste(indicator[!good], collapse=' ; ')))
     }
-    # MERGE
+    dat = dat[good] 
     dat = Reduce(function(x,y) merge(x,y,all=TRUE), dat)
     # EXTRAS
     if(!is.null(cache)){
@@ -42,6 +52,9 @@ WDI <- function(country = "all", indicator = "NY.GNS.ICTR.GN.ZS", start = 2002, 
     }
     if(extra==TRUE){
 	    dat = merge(dat, country_data, all.x=TRUE)
+    }
+    countries = country[country != 'all' & !(country %in% dat$iso2c)]
+    if(length(countries) > 0){
     }
     return(dat)
 }
@@ -59,7 +72,7 @@ wdi.dl = function(indicator, country, start, end){
     dat[,4] = as.numeric(dat[,4])
     colnames(dat) = c('iso2c', 'country', as.character(indicator), 'year')
     # Bad data in WDI JSON files require me to impose this constraint
-    dat = dat[!is.na(dat$year) & dat$year <= end & dat$year >= start,] 
+    dat = dat[!is.na(dat$year) & dat$year <= end & dat$year >= start,]
     return(dat)
 }
 

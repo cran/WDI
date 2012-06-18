@@ -1,4 +1,10 @@
-Version 0.2
+Version 2.1
+-------------
+
+* Fixed various issues (thanks to Matthieu Stigler for bug reports and patches)
+* Faster downloads when requesting multiple countries (leveraging the US;BR;CA API syntax)
+
+Version 2.0
 -----------
 
 * Now uses JSON instead of XML (Faster, easier)
