@@ -1,35 +1,42 @@
 \name{WDI}
 \alias{WDI}
-\title{World Development Indicators}
-\description{Extract and format data from the World Bank's World Development Indicators}
+\title{WDI: World Development Indicators (World Bank)}
 \usage{
-WDI(country="all", indicator="NY.GNS.ICTR.GN.ZS", start=2002, end=2005, extra=FALSE)
+  WDI(country = "all", indicator = "NY.GNS.ICTR.GN.ZS",
+    start = 2002, end = 2005, extra = FALSE, cache = NULL)
 }
 \arguments{
-  \item{country}{Vector of countries (ISO-2 character codes, e.g. "BR", "US", "CA") for which the data is needed. Using the string "all" instead of individual iso codes pulls data for every available country.}
-  \item{indicator}{Character vector of indicators codes. See the WDIsearch() function.}
+  \item{country}{Vector of countries (ISO-2 character
+  codes, e.g. "BR", "US", "CA") for which the data is
+  needed. Using the string "all" instead of individual iso
+  codes pulls data for every available country.}
+
+  \item{indicator}{Character vector of indicators codes.
+  See the WDIsearch() function.}
+
   \item{start}{First year of data}
+
   \item{end}{Last year of data}
-  \item{extra}{TRUE returns extra variables such as region, iso3c code, and incomeLevel}
-}
-\details{
-Downloads the requested data by using the World Bank's API, parses the resulting XML file, and formats it in long country-year format. 
+
+  \item{extra}{TRUE returns extra variables such as region,
+  iso3c code, and incomeLevel}
+
+  \item{cache}{NULL (optional) a list created by WDIcache()
+  to be used with the extra=TRUE argument}
 }
 \value{
-	Data frame with country-year observations. 
+  Data frame with country-year observations
 }
-\note{
-The function itself does not take a long time to execute, but the network connection may induce some delays.
-
-Thanks to C and Adam Hyland for submitting code and bug reports.
+\description{
+  Downloads the requested data by using the World Bank's
+  API, parses the resulting XML file, and formats it in
+  long country-year format.
 }
-\author{Vincent Arel-Bundock <varel@umich.edu>}
 \examples{
-\dontrun{
-WDI(country="all, indicator=("AG.AGR.TRAC.NO","TM.TAX.TCOM.BC.ZS"), years=1990:2000)
-WDI(country=c("US","BR"), indicator="NY.GNS.ICTR.GN.ZS", years=1999, extra=TRUE)
+WDI(country="all", indicator=c("AG.AGR.TRAC.NO","TM.TAX.TCOM.BC.ZS"), start=1990, end=2000)
+WDI(country=c("US","BR"), indicator="NY.GNS.ICTR.GN.ZS", start=1999, end=2000, extra=TRUE, cache=NULL)
 }
+\author{
+  Vincent Arel-Bundock \email{varel@umich.edu}
 }
-
-\keyword{ wdi}
 
