@@ -8,14 +8,15 @@ LazyData: yes
 Type: Package
 LazyLoad: yes
 Encoding: UTF-8
-Version: 2.5.1
+Version: 2.6.0
 URL: https://www.github.com/vincentarelbundock/WDI
-Date: 2018-12-05
-Depends: RJSONIO, R (>= 2.10)
-RoxygenNote: 6.0.1
-Suggests: testthat
+Date: 2019-03-02
+Depends: R (>= 3.1.0)
+Imports: RJSONIO
+Suggests: tidyr (>= 0.8.0), testthat
+RoxygenNote: 6.1.1
 License: GPL-3
 NeedsCompilation: no
-Packaged: 2018-12-05 14:19:43 UTC; docker
+Packaged: 2019-03-03 03:27:57 UTC; vincent
 Repository: CRAN
-Date/Publication: 2018-12-07 14:20:06 UTC
+Date/Publication: 2019-03-03 21:00:16 UTC
