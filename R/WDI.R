@@ -29,6 +29,8 @@ globalVariables(c('year', 'value', 'Country.Name', 'Country.Code', 'Indicator.Na
 #'
 #' @examples
 #'
+#' \dontrun{
+#'
 #' WDI(country="all", indicator=c("AG.AGR.TRAC.NO","TM.TAX.TCOM.BC.ZS"),
 #'     start=1990, end=2000)
 #' WDI(country=c("US","BR"), indicator="NY.GNS.ICTR.GN.ZS", start=1999, end=2000,
@@ -37,12 +39,14 @@ globalVariables(c('year', 'value', 'Country.Name', 'Country.Code', 'Indicator.Na
 #' # Rename indicators on the fly
 #' WDI(country = 'CA', indicator = c('women_private_sector' = 'BI.PWK.PRVS.FE.ZS',
 #'                                   'women_public_sector' = 'BI.PWK.PUBS.FE.ZS'))
+#' }
+#'
 WDI <- function(country = "all", 
-                indicator = "NY.GNS.ICTR.GN.ZS", 
-                start = NULL, 
-                end = NULL, 
+                indicator = "NY.GDP.PCAP.KD",
+                start = 1960, 
+                end = 2020, 
                 extra = FALSE, 
-                cache=NULL){
+                cache = NULL){
 
     # Sanity checks
     country   = gsub('[^a-zA-Z0-9]', '', country)
@@ -65,20 +69,29 @@ WDI <- function(country = "all",
     if (!is.null(start)) {
         if (!is.null(end)) {
             if(!(start <= end)){
-                stop('start/end must be integers with start <= end')
+                stop('start must be smaller than end.') 
             }
         }
     }
 
     # Download
-    dat = lapply(indicator, function(j) try(wdi.dl(j, country, start, end), silent=TRUE))
-
-    # Raise warning if download fails 
-    good = unlist(lapply(dat, function(i) class(i)) == 'list')
-    if(any(!good)){
-        warning(paste('Unable to download indicators ', paste(indicator[!good], collapse=' ; ')))
+    dat <- list()
+    for (i in indicator) {
+        tmp <- tryCatch(wdi.dl(i, country, start, end),
+                        error = function(e) e)
+        if (is.null(tmp) || 
+            !inherits(tmp$data, 'data.frame') ||
+            (nrow(tmp$data) == 0)) {
+            message('Unable to download indicator ', i)
+        } else {
+            dat[[i]] <- tmp
+        }
     }
-    dat = dat[good] 
+
+    if (length(dat) == 0) {
+        message('No indicator could be downloaded. Please check that (a) the country codes are correct, (b) the indicator exists for country and years requested, (c) the indicator name is correctly entered, and (d) the World Bank API servers are online. If you still think your command should have succeeded, please file a support request on Github: https://github.com/vincentarelbundock/WDI')
+        return(NULL)
+    } 
 
     # Extract labels
     lab = lapply(dat, function(x) data.frame('indicator' = x$indicator,
@@ -89,6 +102,7 @@ WDI <- function(country = "all",
     # Extract data
     dat = lapply(dat, function(x) x$data)
     dat = Reduce(function(x,y) merge(x,y,all=TRUE), dat)
+    row.names(dat) <- NULL
 
     # Extras
     if(!is.null(cache)){
@@ -168,39 +182,77 @@ WDIbulk = function() {
     return(out)
 }
 
+#' Internal function to build API call
+#'
+#' @export
+#' @keywords internal
+wdi.query = function(indicator = "NY.GDP.PCAP.CD", 
+                     country = 'all', 
+                     start = 1960, 
+                     end = 2020) {
 
+    # if integer, make sure it is higher than 1960 (world bank breaks otherwise)
+    if (is.numeric(start) && (start %% 1==0)) {
+        if (start < 1960) stop('Start year must be equal or greater than 1950.')
+    }
+
+    # WDI only allows 32500 per_page (this seems undocumented)
+    out = paste0("http://api.worldbank.org/v2/country/", country, "/indicator/", indicator,
+                 "?format=json",
+                 "&date=",start,":",end,
+                 "&per_page=32500",
+                 "&page=",1:10)
+    return(out)
+}
+
+#' Internal function to download data
+#'
+#' @export
+#' @keywords internal
 wdi.dl = function(indicator, country, start, end){
-    # years
-    if (is.null(start)) {
-        start = 1950
+    get_page <- function(daturl) {
+        # download
+        dat_raw = RJSONIO::fromJSON(daturl, nullValue=NA)[[2]]
+        # extract data 
+        dat = lapply(dat_raw, function(j) cbind(j$country[[1]], j$country[[2]], j$value, j$date))
+        dat = data.frame(do.call('rbind', dat), stringsAsFactors = FALSE)
+        colnames(dat) = c('iso2c', 'country', as.character(indicator), 'year')
+        dat$label <- dat_raw[[1]]$indicator['value']
+        # output
+        return(dat)
     }
-    if (is.null(end)) {
-        end = as.integer(format(Sys.Date(), "%Y"))
+    pages <- wdi.query(indicator, country, start, end)
+
+    dat <- list()
+    done <- FALSE # done when pages no longer return useable info
+    for (i in seq_along(pages)) {
+        if (!done) {
+            tmp <- tryCatch(get_page(pages[i]), error = function(e) NULL)
+            if (inherits(tmp, 'data.frame') && (nrow(tmp) > 0)) {
+                dat[[i]] <- tmp
+            } else {
+                done <- TRUE
+            }
+        }
     }
-
-    # build url
-    daturl = paste("http://api.worldbank.org/countries/", country, "/indicators/", indicator,
-                    "?date=",start,":",end, "&per_page=25000", "&format=json", sep = "")
-
-    # download
-    dat_raw = RJSONIO::fromJSON(daturl, nullValue=NA)[[2]]
-
-    # extract data 
-    dat = lapply(dat_raw, function(j) cbind(j$country[[1]], j$country[[2]], j$value, j$date))
-    dat = data.frame(do.call('rbind', dat), stringsAsFactors = FALSE)
-    colnames(dat) = c('iso2c', 'country', as.character(indicator), 'year')
+    dat <- do.call('rbind', dat)
 
     # numeric types
-    dat[[indicator]] = as.numeric(dat[[indicator]])
-    dat$year = as.integer(dat$year)
+    dat[[indicator]] <- as.numeric(dat[[indicator]])
+
+    # date is character for monthly/quarterly data, numeric otherwise
+    if (!any(grepl('M|Q', dat$year))) {
+        dat$year <- as.integer(dat$year)
+    }
 
     # Bad data in WDI JSON files require me to impose this constraint
     dat = dat[!is.na(dat$year) & dat$year <= end & dat$year >= start,]
 
     # output
-    out = list('data' = dat,
+    out = list('data' = dat[, 1:4],
                'indicator' = indicator,
-               'label' = as.character(dat_raw[[1]]$indicator['value']))
+               'label' = dat$label[1])
+
     return(out)
 }
 
@@ -216,14 +268,14 @@ wdi.dl = function(indicator, country, start, end){
 #' @export
 WDIcache = function(){
     # Series
-    series_url = 'http://api.worldbank.org/indicators?per_page=25000&format=json'
+    series_url = 'https://api.worldbank.org/v2/indicator?per_page=25000&format=json'
     series_dat    = RJSONIO::fromJSON(series_url, nullValue=NA)[[2]]
     series_dat = lapply(series_dat, function(k) cbind(
                         'indicator'=k$id, 'name'=k$name, 'description'=k$sourceNote, 
                         'sourceDatabase'=k$source[2], 'sourceOrganization'=k$sourceOrganization)) 
     series_dat = do.call('rbind', series_dat)          
     # Countries
-    country_url = 'http://api.worldbank.org/countries/all?per_page=25000&format=json'
+    country_url = 'https://api.worldbank.org/v2/countries/all?per_page=25000&format=json'
     country_dat = RJSONIO::fromJSON(country_url, nullValue=NA)[[2]]
     country_dat = lapply(country_dat, function(k) cbind(
                          'iso3c'=k$id, 'iso2c'=k$iso2Code, 'country'=k$name, 'region'=k$region[2],
@@ -256,8 +308,10 @@ WDIcache = function(){
 #'     match the criteria.  
 #' @export
 #' @examples
+#' \dontrun{
 #' WDIsearch(string='gdp', field='name', cache=NULL)
 #' WDIsearch(string='AG.AGR.TRAC.NO', field='indicator', cache=NULL)
+#' }
 WDIsearch <- function(string="gdp", field="name", short=TRUE, cache=NULL){
     if(!is.null(cache)){ 
         series = cache$series    
@@ -272,4 +326,3 @@ WDIsearch <- function(string="gdp", field="name", short=TRUE, cache=NULL){
     }
     return(out)
 }
-

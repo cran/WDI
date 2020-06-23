@@ -4,8 +4,7 @@
 \alias{WDIsearch}
 \title{Search names and descriptions of available WDI series}
 \usage{
-WDIsearch(string = "gdp", field = "name", short = TRUE,
-  cache = NULL)
+WDIsearch(string = "gdp", field = "name", short = TRUE, cache = NULL)
 }
 \arguments{
 \item{string}{Character string. Search for this string using \code{grep} with
@@ -29,6 +28,8 @@ Data frame with series code, name, description, and source for the WDI series
 which match the given criteria
 }
 \examples{
+\dontrun{
 WDIsearch(string='gdp', field='name', cache=NULL)
 WDIsearch(string='AG.AGR.TRAC.NO', field='indicator', cache=NULL)
+}
 }

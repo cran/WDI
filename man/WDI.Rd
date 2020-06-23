@@ -4,8 +4,14 @@
 \alias{WDI}
 \title{WDI: World Development Indicators (World Bank)}
 \usage{
-WDI(country = "all", indicator = "NY.GNS.ICTR.GN.ZS", start = NULL,
-  end = NULL, extra = FALSE, cache = NULL)
+WDI(
+  country = "all",
+  indicator = "NY.GDP.PCAP.KD",
+  start = 1960,
+  end = 2020,
+  extra = FALSE,
+  cache = NULL
+)
 }
 \arguments{
 \item{country}{Vector of countries (ISO-2 character codes, e.g. "BR", "US",
@@ -37,6 +43,8 @@ resulting XML file, and formats it in long country-year format.
 }
 \examples{
 
+\dontrun{
+
 WDI(country="all", indicator=c("AG.AGR.TRAC.NO","TM.TAX.TCOM.BC.ZS"),
     start=1990, end=2000)
 WDI(country=c("US","BR"), indicator="NY.GNS.ICTR.GN.ZS", start=1999, end=2000,
@@ -45,6 +53,8 @@ WDI(country=c("US","BR"), indicator="NY.GNS.ICTR.GN.ZS", start=1999, end=2000,
 # Rename indicators on the fly
 WDI(country = 'CA', indicator = c('women_private_sector' = 'BI.PWK.PRVS.FE.ZS',
                                   'women_public_sector' = 'BI.PWK.PUBS.FE.ZS'))
+}
+
 }
 \author{
 Vincent Arel-Bundock \email{vincent.arel-bundock@umontreal.ca}
