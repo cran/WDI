@@ -7,14 +7,14 @@ LazyData: yes
 Type: Package
 LazyLoad: yes
 Encoding: UTF-8
-Version: 2.7.0
-URL: https://www.github.com/vincentarelbundock/WDI
+Version: 2.7.1
+URL: https://vincentarelbundock.github.io/WDI
 Depends: R (>= 3.5.0)
 Imports: RJSONIO
 Suggests: tidyr (>= 0.8.0), testthat
 RoxygenNote: 7.1.0.9000
 License: GPL-3
 NeedsCompilation: no
-Packaged: 2020-06-22 21:48:55 UTC; vincent-imac
+Packaged: 2020-07-05 12:35:06 UTC; vincent
 Repository: CRAN
-Date/Publication: 2020-06-23 05:30:28 UTC
+Date/Publication: 2020-07-05 13:00:03 UTC
