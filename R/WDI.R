@@ -19,9 +19,16 @@ globalVariables(c('year', 'value', 'Country.Name', 'Country.Code', 'Indicator.Na
 #' @param end End date, usually a year in integer format. Must be greater than
 #' the `start` argument.
 #' @param extra TRUE returns extra variables such as region, iso3c code, and
-#'     incomeLevel
-#' @param cache NULL (optional) a list created by WDIcache() to be used with the
-#'     extra=TRUE argument
+#'     incomeLevel.
+#' @param cache NULL (optional) a list created by WDIcache() to be used with the extra=TRUE argument.
+#' @param latest Integer indicating the number of most recent non-NA values to get. Default is NULL. If specified, it overrides the start and end dates.
+#' @param language ISO-2 code in lower case indicating in which language the characters should be provided. List of languages available with `WDI::languages_supported()`. Default is English.
+#'     
+#'     
+#' @details It is possible to only specify the `indicator` and the `country` arguments, in which case `WDI()` will return data from 1960 to the last year available on World Bank's website. 
+#' 
+#' It is also possible to get only the most recent non-NA values, with `latest`.
+#' 
 #' @return Data frame with country-year observations. You can extract a
 #' data.frame with indicator names and descriptive labels by inspecting the
 #' `label` attribute of the resulting data.frame: `attr(dat, 'label')`
@@ -41,6 +48,9 @@ globalVariables(c('year', 'value', 'Country.Name', 'Country.Code', 'Indicator.Na
 #' # Rename indicators on the fly
 #' WDI(country = 'CA', indicator = c('women_private_sector' = 'BI.PWK.PRVS.FE.ZS',
 #'                                   'women_public_sector' = 'BI.PWK.PUBS.FE.ZS'))
+#'                                   
+#' # Get the 5 latest non-NA values
+#' WDI(country=c("US","BR"), indicator="NY.GNS.ICTR.GN.ZS", latest = 5)
 #' }
 #'
 WDI <- function(country = "all", 
@@ -48,7 +58,9 @@ WDI <- function(country = "all",
                 start = 1960, 
                 end = 2020, 
                 extra = FALSE, 
-                cache = NULL){
+                cache = NULL,
+                latest = NULL,
+                language = "en"){
 
     # Sanity: country
     if (!is.character(country)) {
@@ -71,19 +83,52 @@ WDI <- function(country = "all",
     }
 
     # Sanity: start & end
-    if(!(start <= end)){
-        stop('`end` must be equal to or greater than `start`.')
-    }
     is_integer <- function(x) is.numeric(x) && (x %% 1 == 0)
-    if (is_integer(start) && (start < 1960)) {
+    
+    # If latest is specified then the good order of dates doesn't matter
+    if (!is.null(start) && !is.null(end) && is.null(latest)) {
+      if(!(start <= end)){
+        stop('`end` must be equal to or greater than `start`.')
+      }
+      if (is_integer(start) && (start < 1960)) {
         stop('`start` must be equal to or greater than 1960')
+      }
     }
+    
+    # Sanity: needs dates or number of most recent values (but not both)
+    if (is.null(start) && is.null(end) && is.null(latest)) {
+      stop("Need to specify dates or number of latest values.")
+    }
+    
+    
+    # "Language" option (placed here and not in wdi.query because
+    # otherwise tryCatch doesn't show the expected error message)
+    # get the two first letters (iso code)
+    supported_fully <- substr(languages_supported()$fully, 
+                              start = 1, 
+                              stop = 2)
+    supported_locally <- substr(languages_supported()$locally, 
+                                start = 1, 
+                                stop = 2)
+    if (is.null(language)) {
+      language <- "en"
+    } else {
+      if (language %in% supported_locally) {
+        warning("This language is only supported partially.")
+      } else if (!(language %in% supported_locally ||  
+                   language %in% supported_fully)) {
+        stop(paste0("This language is not supported. Run ",
+                    "WDI::languages_supported() to have a list of ",
+                    "fully and partially supported languages."))
+      }
+    }
+    
 
     # Download
     dat <- list()
     failed <- NULL
     for (i in indicator) {
-        tmp <- tryCatch(wdi.dl(i, country, start, end), error = function(e) e)
+        tmp <- tryCatch(wdi.dl(i, country, start, end, latest, language), error = function(e) e)
         if (is.null(tmp) || !inherits(tmp$data, 'data.frame') || (nrow(tmp$data) == 0)) {
             failed <- c(failed, i)
         } else {
@@ -93,7 +138,7 @@ WDI <- function(country = "all",
 
     # Sanity: downloaded data
     if (length(dat) == 0) {
-        message('None of the indicators your requested could be downloaded. Please verify the arguments of the `WDI()` function. You can also type a URL of this form in your browser to check if the World Bank web API is currently serving the indicator(s) of interest: ',
+        message('None of the indicators you requested could be downloaded. Please verify the arguments of the `WDI()` function. You can also type a URL of this form in your browser to check if the World Bank web API is currently serving the indicator(s) of interest: ',
                 wdi.query(indicator = failed[1])[1])
         return(NULL)
     } 
@@ -162,41 +207,57 @@ WDI <- function(country = "all",
 #' 
 #' @return Data frame 
 #' @author Vincent Arel-Bundock \email{vincent.arel-bundock@umontreal.ca}
+#' @param timeout integer maximum number of seconds to wait for download
 #' @return a list of 6 data frames: Data, Country, Series, Country-Series,
 #' Series-Time, FootNote
 #' @export
-WDIbulk = function() {
+WDIbulk = function(timeout = 600) {
+
+    # store default option
+    oo <- options(timeout = timeout)
+
     if (!'tidyr' %in% utils::installed.packages()[, 1]) {
         stop('To use the `WDIbulk` function, you must install the `tidyr` package.')
     }
 
     # download
-    temp = tempfile()
+    temp_dir = tempdir()
+    temp_file = tempfile(tmpdir = temp_dir)
     url = 'https://databank.worldbank.org/data/download/WDI_csv.zip'
-    utils::download.file(url, temp)
+    utils::download.file(url, temp_file)
 
     # read
-    zip_content = c("WDIData.csv", "WDICountry.csv", "WDISeries.csv",
-                    "WDICountry-Series.csv", "WDISeries-Time.csv",
-                    "WDIFootNote.csv")
-    out = lapply(zip_content, function(x) utils::read.csv(unz(temp, x), stringsAsFactors = FALSE))
+    unzipped <- utils::unzip(zipfile = temp_file,
+                             exdir = temp_dir)
+
+    out = lapply(unzipped, function(x){
+        utils::read.csv(x, stringsAsFactors = FALSE)
+    })
 
     # flush
-    unlink(temp)
+    unlink(temp_file)
 
     # names
-    names(out) = zip_content
-    names(out) = gsub('.csv', '', names(out))
-    names(out) = gsub('WDI', '', names(out))
+    names(out) = c("Data", "Country", "Series",
+                   "Country-Series", "Series-Time",
+                   "FootNote")
 
     # clean "Data" entry
     out$Data$X = NULL
-    out$Data = tidyr::gather(out$Data, year, value, -Country.Name,
-                             -Country.Code, -Indicator.Name, -Indicator.Code)
+
+    out$Data = tidyr::pivot_longer(
+        data = out$Data,
+        cols = tidyr::starts_with("X"),
+        names_to = "year",
+        names_prefix = "X",
+        values_to = "value"
+    )
 
     # clean year column
-    out$Data$year = gsub('^X', '', out$Data$year)
     out$Data$year = as.integer(out$Data$year)
+
+    # restore default option
+    on.exit(options(oo))
 
     # output
     return(out)
@@ -209,16 +270,38 @@ WDIbulk = function() {
 wdi.query = function(indicator = "NY.GDP.PCAP.CD", 
                      country = 'all', 
                      start = 1960, 
-                     end = 2020) {
+                     end = 2020,
+                     latest = NULL,
+                     language = "en") {
 
     country <- paste(country, collapse = ';')
+    
+    # "Latest" option
+    if (!is.null(latest)) {
+      latest <- paste0("&mrnev=", latest)
+    }
+    
+    # If latest is specified, dates are overridden
+    if (!is.null(start) && !is.null(end)) {
+      if (is.null(latest)) {
+        years <- paste0("&date=", start, ":", end)
+      } else {
+        years <- NULL
+      }
+    } else {
+      years <- NULL
+    }
 
     # WDI only allows 32500 per_page (this seems undocumented)
-    out = paste0("https://api.worldbank.org/v2/country/", country, "/indicator/", indicator,
+    out = paste0("https://api.worldbank.org/v2/",
+                 language, 
+                 "/country/", 
+                 country, "/indicator/", indicator,
                  "?format=json",
-                 "&date=", start, ":", end,
+                 years,
                  "&per_page=32500",
-                 "&page=",1:10)
+                 "&page=", 1:10,
+                 latest)
     return(out)
 }
 
@@ -226,7 +309,7 @@ wdi.query = function(indicator = "NY.GDP.PCAP.CD",
 #'
 #' @export
 #' @keywords internal
-wdi.dl = function(indicator, country, start, end){
+wdi.dl = function(indicator, country, start, end, latest = NULL, language = "en"){
     get_page <- function(daturl) {
         # download
         dat_raw = RJSONIO::fromJSON(daturl, nullValue=NA)[[2]]
@@ -239,7 +322,7 @@ wdi.dl = function(indicator, country, start, end){
         return(dat)
     }
 
-    pages <- wdi.query(indicator, country, start, end)
+    pages <- wdi.query(indicator, country, start, end, latest, language)
 
     dat <- list()
     done <- FALSE # done when pages no longer return useable info
@@ -264,7 +347,9 @@ wdi.dl = function(indicator, country, start, end){
     }
 
     # Bad data in WDI JSON files require me to impose this constraint
-    dat = dat[!is.na(dat$year) & dat$year <= end & dat$year >= start,]
+    if (!is.null(start) && !is.null(end)) {
+      dat = dat[!is.na(dat$year) & dat$year <= end & dat$year >= start,] 
+    }
 
     # output
     out = list('data' = dat[, 1:4],
@@ -343,4 +428,34 @@ WDIsearch <- function(string="gdp", field="name", short=TRUE, cache=NULL){
         out = series[matches,]
     }
     return(out)
+}
+
+
+#' List of supported languages
+#' 
+#' This prints two lists of languages, the fully supported ones and the locally supported ones:
+#' * the languages in the category "fully" will return translated names and other info for all countries.
+#' * the languages in the category "partially" will return translated names and other info only for the country they represent. 
+#' 
+#' For example, choosing "vi" (for Vietnamese) will translate "Vietnam" in the dataset but other country names won't be translated and will be empty.
+#'
+#'
+#' @return A list of fully and partially supported languages.
+#' @export
+languages_supported <- function() {
+  
+    fully <- c("en (English)", "es (Spanish)", "fr (French)", 
+               "ar (Arabic)", "zh (Chinese)")
+    locally <- c("bg (Belgian)", "de (German)", "hi (Hindi)", 
+                 "id (Indonesian)", "ja (Japanese)", "km (Khmer)", 
+                 "ko (Korean)", "mk (Macedonian)", "mn (Mongolian)",
+                 "pl (Polish)", "pt (Portuguese)", "ro (Romanian)",
+                 "ru (Russian)", "sq (Albanian)", "th (Thai)", "tr (Turkish)",
+                 "uk (Ukrainian)", "vi (Vietnamese)")
+    
+    list(
+      fully = fully,
+      locally = locally
+    )
+    
 }

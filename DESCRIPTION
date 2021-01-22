@@ -1,20 +1,26 @@
 Package: WDI
 Title: World Development Indicators and Other World Bank Data
 Description: Search and download data from over 40 databases hosted by the World Bank, including the World Development Indicators ('WDI'), International Debt Statistics, Doing Business, Human Capital Index, and Sub-national Poverty indicators.
-Author: Vincent Arel-Bundock <vincent.arel-bundock@umontreal.ca>
+Authors@R: c(
+    person("Vincent", "Arel-Bundock", email = "vincent.arel-bundock@umontreal.ca", role = c("aut", "cre"), comment = c(ORCID = "0000-0003-2042-7063")),
+    person("Etienne", "Bacher", email = "etienne.bacher@protonmail.com", role = "ctb")
+    )
 Maintainer: Vincent Arel-Bundock <vincent.arel-bundock@umontreal.ca>
 LazyData: yes
 Type: Package
 LazyLoad: yes
 Encoding: UTF-8
-Version: 2.7.1
-URL: https://vincentarelbundock.github.io/WDI
+Version: 2.7.2
+URL: https://vincentarelbundock.github.io/WDI/
 Depends: R (>= 3.5.0)
 Imports: RJSONIO
 Suggests: tidyr (>= 0.8.0), testthat
-RoxygenNote: 7.1.0.9000
+RoxygenNote: 7.1.1
 License: GPL-3
 NeedsCompilation: no
-Packaged: 2020-07-05 12:35:06 UTC; vincent
+Packaged: 2021-01-21 22:32:52 UTC; vincent
+Author: Vincent Arel-Bundock [aut, cre]
+    (<https://orcid.org/0000-0003-2042-7063>),
+  Etienne Bacher [ctb]
 Repository: CRAN
-Date/Publication: 2020-07-05 13:00:03 UTC
+Date/Publication: 2021-01-22 05:40:16 UTC
