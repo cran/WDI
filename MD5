@@ -1,8 +1,8 @@
-3e577f7e95c9c85d8e757020164c776b *DESCRIPTION
+d84a331c214175d805d2d8dc89e7dafd *DESCRIPTION
 fbb21e7174a609292f0eab09c7032404 *NAMESPACE
-d6f96d5a71bf59f296e1fbef4b0805e1 *NEWS.md
+5a6d23c13da77d4c0c91f7265ef3395d *NEWS.md
 ae8239ff85c0a656f3cda9a138694a1e *R/WDI-package.R
-cbff2116624d6bf37e574c51220b049f *R/WDI.R
+d340768941a138c0e3c024b3d1a047cb *R/WDI.R
 344667cd7a6edd02916cf434a9b93e8c *R/WDI_data.R
 457a89717e0e1452f7e1239b0ea064fc *README.md
 77d8a7be18d948c5f76ce09c945efebd *data/WDI_data.RData
@@ -16,4 +16,4 @@ d2421db3d8799116c93413ae55122815 *man/WDI-package.Rd
 b58e18e27bdcc08b4100a5f415dc3c36 *man/wdi.dl.Rd
 2ad45755ddd9dda0c045b5e5abad252b *man/wdi.query.Rd
 c36303a2663064c6f6ff99f4430e2dc5 *tests/testthat.R
-c4d095c6fe31d3983014ddce2a41591d *tests/testthat/test-all.R
+7b333af7b2a66c4300f5d9b26f36656d *tests/testthat/test-all.R
