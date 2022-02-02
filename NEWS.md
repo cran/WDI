@@ -1,3 +1,8 @@
+# WDI 2.7.5
+
+* Add the observation status (whether an observation is a forecast) when `extra = TRUE` in `WDI()` (#48)
+* Updated cache
+
 # WDI 2.7.4
 
 * Bug fix for on-the-fly rename
