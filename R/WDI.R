@@ -17,7 +17,7 @@ globalVariables(c('year', 'value', 'Country.Name', 'Country.Code', 'Indicator.Na
 #' @param start Start date, usually a year in integer format. Must be 1960 or
 #' greater.
 #' @param end End date, usually a year in integer format. Must be greater than
-#' the `start` argument.
+#' the `start` argument. If `NULL`, the end date is set to 5 years in the future.
 #' @param extra TRUE returns extra variables such as region, iso3c code, and
 #'     incomeLevel. See Details.
 #' @param cache NULL (optional) a list created by WDIcache() to be used with the extra=TRUE argument.
@@ -45,7 +45,6 @@ globalVariables(c('year', 'value', 'Country.Name', 'Country.Code', 'Indicator.Na
 #' data.frame with indicator names and descriptive labels by inspecting the
 #' `label` attribute of the resulting data.frame: `attr(dat, 'label')`
 #' @author Vincent Arel-Bundock \email{vincent.arel-bundock@umontreal.ca}
-#' @importFrom RJSONIO fromJSON
 #' @export
 #'
 #' @examples
@@ -68,11 +67,12 @@ globalVariables(c('year', 'value', 'Country.Name', 'Country.Code', 'Indicator.Na
 WDI <- function(country = "all",
                 indicator = "NY.GDP.PCAP.KD",
                 start = 1960,
-                end = 2025,
+                end = NULL,
                 extra = FALSE,
                 cache = NULL,
                 latest = NULL,
                 language = "en") {
+
 
 
     # Sanity: country
@@ -98,14 +98,18 @@ WDI <- function(country = "all",
     # Sanity: start & end
     is_integer <- function(x) is.numeric(x) && (x %% 1 == 0)
     
+    if (is.null(end)) {
+        end <- as.integer(format(Sys.Date(), format = "%Y")) + 5
+    }
+
     # If latest is specified then the good order of dates doesn't matter
     if (!is.null(start) && !is.null(end) && is.null(latest)) {
-      if(!(start <= end)){
-        stop('`end` must be equal to or greater than `start`.')
-      }
-      if (is_integer(start) && (start < 1960)) {
-        stop('`start` must be equal to or greater than 1960')
-      }
+        if (!(start <= end)) {
+            stop("`end` must be equal to or greater than `start`.")
+        }
+        if (is_integer(start) && (start < 1960)) {
+            stop("`start` must be equal to or greater than 1960")
+        }
     }
     
     # Sanity: needs dates or number of most recent values (but not both)
@@ -174,10 +178,7 @@ wdi.query(indicator = failed[1])[1])
     }
 
     # Extract labels
-    lab = lapply(dat, function(x) data.frame('indicator' = x$indicator,
-                                             'label' = x$label,
-                                             stringsAsFactors = FALSE))
-    lab = do.call('rbind', lab)
+    lab <- sapply(names(dat), function(x) attr(dat[[x]][["data"]], "label")[1])
 
     # Extract data
     dat = lapply(dat, function(x) x$data)
@@ -198,10 +199,8 @@ wdi.query(indicator = failed[1])[1])
     }
 
     # Assign label attributes
-    for (i in 1:nrow(lab)) {
-        if (lab$indicator[i] %in% colnames(dat)) {
-            attr(dat[[lab$indicator[i]]], 'label') = lab$label[[i]]
-        }
+    for (n in names(lab)) {
+        attr(dat[[n]], "label") <- lab[[n]]
     }
 
 	# Rename columns based on indicator vector names
@@ -284,29 +283,22 @@ WDIbulk = function(timeout = 600) {
 #' @keywords internal
 wdi.query = function(indicator = "NY.GDP.PCAP.CD", 
                      country = 'all', 
-                     start = 1960, 
-                     end = 2020,
+                     start = NULL, 
+                     end = NULL,
                      latest = NULL,
                      language = "en") {
 
     country <- paste(country, collapse = ';')
-    
-    # "Latest" option
-    if (!is.null(latest)) {
-      latest <- paste0("&mrnev=", latest)
-    }
+
     
     # If latest is specified, dates are overridden
-    if (!is.null(start) && !is.null(end)) {
-      if (is.null(latest)) {
-        years <- paste0("&date=", start, ":", end)
-      } else {
-        years <- NULL
-      }
-    } else {
+    if (!is.null(latest)) {
+      latest <- paste0("&mrnev=", latest)
       years <- NULL
+    } else {
+      years <- paste0("&date=", start, ":", end)
     }
-
+    
     # WDI only allows 32500 per_page (this seems undocumented)
     out = paste0("https://api.worldbank.org/v2/",
                  language, 
@@ -326,33 +318,37 @@ wdi.query = function(indicator = "NY.GDP.PCAP.CD",
 #' @keywords internal
 wdi.dl = function(indicator, country, start, end, latest = NULL, language = "en", extra = FALSE){
     get_page <- function(daturl) {
-        # download
-        dat_raw <- RJSONIO::fromJSON(daturl, nullValue=NA)
-        meta <- dat_raw[[1]]
-        dat_raw <- dat_raw[[2]]
-
-        # extract data 
-        dat = lapply(dat_raw, function(j) cbind(j$country[[1]], j$country[[2]], j$value, j$date, j$obs_status))
-        dat = data.frame(do.call('rbind', dat), stringsAsFactors = FALSE)
-        colnames(dat) = c('iso2c', 'country', as.character(indicator), 'year', "status")
-        dat$status <- ifelse(dat$status == "F", "forecast", dat$status)
-        if (!isTRUE(extra)) {
-          dat$status <- NULL
+        dat_new <- jsonlite::fromJSON(daturl)
+        meta <- dat_new[[1]]
+        dat <- dat_new[[2]]
+        dat2 <- data.frame(
+            country = dat[["country"]][["value"]],
+            iso2c = dat[["country"]][["id"]],
+            iso3c = dat[["countryiso3code"]],
+            year = dat[["date"]],
+            indicator = dat[["value"]],
+            stringsAsFactors = FALSE)
+        colnames(dat2)[colnames(dat2) == "indicator"] <- indicator
+        if (isTRUE(extra) && nrow(dat2) > 0 && "obs_status" %in% colnames(dat)) {
+            dat2[["status"]] <- dat[["obs_status"]]
+            dat2[["status"]] <- ifelse(dat2[["status"]] == "F", "forecast", dat2[["status"]])
         }
-        dat$label <- dat_raw[[1]]$indicator['value']
+        dat <- dat2
 
         # output
         attr(dat, "lastupdated") <- tryCatch(meta[["lastupdated"]], error = function(e) NULL)
+        attr(dat, "label") <- dat_new[[2]]$indicator$value
         return(dat)
     }
 
     pages <- wdi.query(indicator, country, start, end, latest, language)
+    lab <- attr(pages[[1]], "label")
 
     dat <- list()
     done <- FALSE # done when pages no longer return useable info
     for (i in seq_along(pages)) {
-        if (!done) {
             tmp <- tryCatch(get_page(pages[i]), error = function(e) NULL)
+        if (!done) {
             if (inherits(tmp, 'data.frame') && (nrow(tmp) > 0)) {
                 dat[[i]] <- tmp
             } else {
@@ -361,13 +357,17 @@ wdi.dl = function(indicator, country, start, end, latest = NULL, language = "en"
         }
     }
     lastupdated <- attr(dat[[1]], "lastupdated")
+
     dat <- do.call('rbind', dat)
 
     # numeric types
     dat[[indicator]] <- as.numeric(dat[[indicator]])
 
     # date is character for monthly/quarterly data, numeric otherwise
-    if (!any(grepl('M|Q', dat$year))) {
+    if (is.factor(dat$year)) {
+        dat$year <- as.character(dat$year)
+    }
+    if (is.character(dat$year) && !any(grepl('M|Q', dat$year))) {
         dat$year <- as.integer(dat$year)
     }
 
@@ -377,15 +377,12 @@ wdi.dl = function(indicator, country, start, end, latest = NULL, language = "en"
     }
 
     # output
-    if (isTRUE(extra)) {
-      out <- list('data' = dat[, 1:5],
-                  'indicator' = indicator,
-                  'label' = dat$label[1])
-    } else {
-      out <- list('data' = dat[, 1:4],
-                  'indicator' = indicator,
-                  'label' = dat$label[1])
-    }
+    out <- list(
+        'data' = dat,
+        'indicator' = indicator,
+        'label' = lab)
+
+    out$data$label <- NULL
 
     # updated column
     if (isTRUE(extra) && !is.null(lastupdated)) {
@@ -408,25 +405,33 @@ wdi.dl = function(indicator, country, start, end, latest = NULL, language = "en"
 WDIcache = function(){
     # Series
     series_url = 'https://api.worldbank.org/v2/indicator?per_page=25000&format=json'
-    series_dat    = RJSONIO::fromJSON(series_url, nullValue=NA)[[2]]
-    series_dat = lapply(series_dat, function(k) cbind(
-                        'indicator'=k$id, 'name'=k$name, 'description'=k$sourceNote, 
-                        'sourceDatabase'=k$source[2], 'sourceOrganization'=k$sourceOrganization)) 
-    series_dat = do.call('rbind', series_dat)          
+    series_dat <- jsonlite::fromJSON(series_url)[[2]]
+    series_dat <- data.frame(
+        indicator = series_dat$id,
+        name = series_dat$name,
+        description = series_dat$sourceNote,
+        sourceDatabase = series_dat$source$value,
+        sourceOrganization = series_dat$sourceOrganization,
+        stringsAsFactors = FALSE)
+
     # Countries
     country_url = 'https://api.worldbank.org/v2/countries/all?per_page=25000&format=json'
-    country_dat = RJSONIO::fromJSON(country_url, nullValue=NA)[[2]]
-    country_dat = lapply(country_dat, function(k) cbind(
-                         'iso3c'=k$id, 'iso2c'=k$iso2Code, 'country'=k$name, 'region'=k$region[['value']],
-                         'capital'=k$capitalCity, 'longitude'=k$longitude, 'latitude'=k$latitude, 
-                         'income'=k$incomeLevel[['value']], 'lending'=k$lendingType[['value']])) 
-    country_dat = do.call('rbind', country_dat)
-    row.names(country_dat) = row.names(series_dat) = NULL
+    country_dat <- jsonlite::fromJSON(country_url)[[2]]
+    country_dat <- data.frame(
+        iso3c = country_dat$id,
+        iso2c = country_dat$iso2Code,
+        country = country_dat$name,
+        region = trimws(country_dat$region$value),
+        capital = country_dat$capitalCity,
+        longitude = country_dat$longitude,
+        latitude = country_dat$latitude,
+        income = country_dat$incomeLevel$value,
+        lending = country_dat$lendingType$value,
+        stringsAsFactors = FALSE)
+
     out = list('series'=series_dat, 'country'=country_dat)
-    out$series = iconv(out$series, to = 'utf8')
-    out$country = iconv(out$country, to = 'utf8')
-    # some regions have extra whitespace in wb data
-    out$country[, 'region'] = base::trimws(out$country[, 'region'])
+    # out$series = iconv(out$series, to = 'utf8')
+    # out$country = iconv(out$country, to = 'utf8')
     return(out)
 }
 
@@ -457,7 +462,7 @@ WDIsearch <- function(string="gdp", field="name", short=TRUE, cache=NULL){
     }else{
         series = WDI::WDI_data$series
     }
-    matches = grep(string, series[,field], ignore.case=TRUE)
+    matches = grep(string, series[, field], ignore.case=TRUE)
     if(short){
         out = series[matches, c('indicator', 'name')]
     }else{

@@ -14,17 +14,17 @@ LazyData: yes
 Type: Package
 LazyLoad: yes
 Encoding: UTF-8
-Version: 2.7.7
+Version: 2.7.8
 URL: https://vincentarelbundock.github.io/WDI/
 Depends: R (>= 3.5.0)
-Imports: RJSONIO
-Suggests: testthat, tidyr (>= 0.8.0)
-RoxygenNote: 7.1.2
+Imports: jsonlite
+Suggests: curl, testthat, tidyr (>= 0.8.0)
+RoxygenNote: 7.2.1
 License: GPL-3
 NeedsCompilation: no
-Packaged: 2022-07-15 11:17:57 UTC; vincent
+Packaged: 2022-09-25 10:43:32 UTC; vincent
 Author: Vincent Arel-Bundock [aut, cre]
     (<https://orcid.org/0000-0003-2042-7063>),
   Etienne Bacher [ctb]
 Repository: CRAN
-Date/Publication: 2022-07-16 07:30:34 UTC
+Date/Publication: 2022-09-25 11:10:02 UTC
